@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuthContext Simulation Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+        .form-group { margin: 15px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        button { background: #007bff; color: white; padding: 12px 24px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .result { margin: 20px 0; padding: 15px; border-radius: 5px; font-family: monospace; white-space: pre-wrap; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔬 TerraFlow AuthContext Simulation</h1>
+        <p>This test simulates the exact same logic as the React AuthContext to isolate any issues.</p>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" value="admin@terraflow.com" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" value="admin123" required>
+            </div>
+            
+            <button type="submit" id="loginBtn">🔐 Test AuthContext Login Flow</button>
+            <button type="button" onclick="checkCurrentAuth()">👤 Check Current Auth</button>
+            <button type="button" onclick="clearAuth()">🗑️ Clear Auth</button>
+        </form>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const resultDiv = document.getElementById('result');
+        const loginBtn = document.getElementById('loginBtn');
+        
+        function showResult(message, type = 'info') {
+            resultDiv.innerHTML = `<div class="result ${type}">${message}</div>`;
+        }
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const current = resultDiv.innerHTML;
+            resultDiv.innerHTML = current + `<div class="result info">[${timestamp}] ${message}</div>`;
+        }
+        
+        // This is the EXACT same login function as in AuthContext
+        async function simulateAuthContextLogin(email, password) {
+            log('=== AUTH CONTEXT LOGIN DEBUG ===');
+            log(`Email: ${email}`);
+            log(`Password length: ${password?.length}`);
+            log('Making API call to: http://localhost:5000/api/login');
+            
+            try {
+                // Make API call to backend for authentication
+                const response = await fetch('http://localhost:5000/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password }),
+                });
+
+                log(`Response status: ${response.status}`);
+                log(`Response ok: ${response.ok}`);
+                
+                const result = await response.json();
+                log(`Response data: ${JSON.stringify(result, null, 2)}`);
+
+                if (response.ok && result.success) {
+                    log('Login successful, processing user data...');
+                    
+                    const user = {
+                        id: result.user.id.toString(),
+                        username: result.user.full_name,
+                        email: result.user.email,
+                        role: result.user.role,
+                        fullName: result.user.full_name,
+                        isApproved: true
+                    };
+                    
+                    log(`Created user object: ${JSON.stringify(user, null, 2)}`);
+                    
+                    // Store both user data and token
+                    const userWithToken = {
+                        ...user,
+                        token: result.token
+                    };
+                    
+                    log('Storing user with token in localStorage...');
+                    localStorage.setItem('terraflow_user', JSON.stringify(userWithToken));
+                    
+                    // Verify storage
+                    const storedData = localStorage.getItem('terraflow_user');
+                    if (storedData) {
+                        const parsed = JSON.parse(storedData);
+                        log('User stored successfully');
+                        log(`Stored user role: ${parsed.role}`);
+                        log(`Token present: ${!!parsed.token}`);
+                        
+                        showResult(`✅ LOGIN SUCCESSFUL!
+Role: ${parsed.role}
+Email: ${parsed.email}
+Token: ${parsed.token ? 'Present' : 'Missing'}
+Full Name: ${parsed.fullName}
+
+This proves the AuthContext login logic works correctly!
+The issue must be in the React implementation or form handling.`, 'success');
+                        
+                        return true;
+                    } else {
+                        log('❌ Failed to store user data in localStorage');
+                        showResult('❌ Storage failed after successful API call', 'error');
+                        return false;
+                    }
+                } else {
+                    log(`Login failed: ${result.message}`);
+                    log(`Response status: ${response.status}`);
+                    showResult(`❌ Login failed: ${result.message}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`Login error: ${error.message}`);
+                log(`Error type: ${typeof error}`);
+                log(`Error details: ${error.toString()}`);
+                showResult(`❌ Network/JavaScript error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        function checkCurrentAuth() {
+            const userData = localStorage.getItem('terraflow_user');
+            if (userData) {
+                try {
+                    const user = JSON.parse(userData);
+                    showResult(`✅ Currently logged in:
+Role: ${user.role}
+Email: ${user.email}
+Name: ${user.fullName}
+Token: ${user.token ? 'Present' : 'Missing'}`, 'success');
+                } catch (error) {
+                    showResult('❌ Corrupted user data in localStorage', 'error');
+                }
+            } else {
+                showResult('ℹ️ No user currently logged in', 'info');
+            }
+        }
+        
+        function clearAuth() {
+            localStorage.removeItem('terraflow_user');
+            showResult('✅ Authentication data cleared', 'info');
+        }
+        
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                showResult('❌ Please enter both email and password', 'error');
+                return;
+            }
+            
+            loginBtn.disabled = true;
+            loginBtn.textContent = '🔄 Testing...';
+            
+            resultDiv.innerHTML = '';
+            log('Starting AuthContext login simulation...');
+            
+            try {
+                await simulateAuthContextLogin(email, password);
+            } catch (error) {
+                showResult(`❌ Unexpected error: ${error.message}`, 'error');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = '🔐 Test AuthContext Login Flow';
+            }
+        });
+        
+        // Initial state check
+        window.addEventListener('load', () => {
+            log('AuthContext simulation loaded');
+            log('Testing environment ready');
+            checkCurrentAuth();
+        });
+    </script>
+</body>
+</html>
