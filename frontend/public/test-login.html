@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 400px; margin: 0 auto; }
+        input, button { display: block; width: 100%; margin: 10px 0; padding: 10px; }
+        button { background: #1890ff; color: white; border: none; cursor: pointer; }
+        button:hover { background: #40a9ff; }
+        .log { margin: 20px 0; padding: 10px; background: #f5f5f5; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>TerraFlow Login Test</h2>
+        <form id="loginForm">
+            <input type="email" id="email" placeholder="Email" value="admin@terraflow.com" required>
+            <input type="password" id="password" placeholder="Password" value="admin123" required>
+            <button type="submit">Test Login</button>
+        </form>
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        const log = document.getElementById('log');
+        
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'black';
+            log.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            console.log(message);
+        }        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            addLog('Starting login test...');
+            addLog(`Email: ${email}`);
+            addLog(`Password length: ${password.length}`);
+            addLog(`Current URL: ${window.location.href}`);
+            addLog(`User Agent: ${navigator.userAgent}`);
+            
+            try {
+                addLog('Making API call to http://localhost:5000/api/login');
+                
+                const requestBody = JSON.stringify({ email, password });
+                addLog(`Request body: ${requestBody}`);
+                
+                const response = await fetch('http://localhost:5000/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: requestBody,
+                });
+                
+                addLog(`Response status: ${response.status}`);
+                addLog(`Response statusText: ${response.statusText}`);
+                addLog(`Response ok: ${response.ok}`);
+                addLog(`Response headers: ${JSON.stringify([...response.headers.entries()])}`);
+                
+                const result = await response.json();
+                addLog(`Response data: ${JSON.stringify(result, null, 2)}`);
+                
+                if (response.ok && result.success) {
+                    addLog(`✅ Login successful! Role: ${result.user.role}`, 'success');
+                    addLog(`Token received: ${result.token ? 'Yes (length: ' + result.token.length + ')' : 'No'}`, 'success');
+                    
+                    // Test localStorage
+                    try {
+                        localStorage.setItem('test_user', JSON.stringify(result.user));
+                        localStorage.setItem('test_token', result.token);
+                        addLog('✅ LocalStorage test successful', 'success');
+                    } catch (storageError) {
+                        addLog(`❌ LocalStorage test failed: ${storageError.message}`, 'error');
+                    }
+                } else {
+                    addLog(`❌ Login failed: ${result.message}`, 'error');
+                }
+                
+            } catch (error) {
+                addLog(`❌ Network error: ${error.message}`, 'error');
+                addLog(`Error name: ${error.name}`, 'error');
+                addLog(`Error stack: ${error.stack}`, 'error');
+                
+                // Check if it's a CORS error
+                if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
+                    addLog('This might be a CORS error. Check if backend allows requests from this origin.', 'error');
+                }
+            }
+        });
+        
+        // Add initial log
+        addLog('Login test page loaded');
+    </script>
+</body>
+</html>
